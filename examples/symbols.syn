@@ -1,0 +1,4 @@
+set some_value = 14;
+set other_value = some_value;
+set solution = 3 + 4 - 2 * 3 / 3;
+set other = ();
