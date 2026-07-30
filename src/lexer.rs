@@ -1,20 +1,17 @@
-#![allow(dead_code)] // TODO: remove this
-
 use std::{iter::Peekable, str::FromStr};
+
+use thiserror::Error;
 
 // TODO: better diagnostics here?
 
-#[derive(Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum LexError {
-    ExpectedKeyword,
+    #[error("no keyword match")]
+    NoKeywordMatch,
+    #[error("unexpected character '{0}'")]
     UnexpectedCharacter(char),
+    #[error("invalid numeric syntax '{0}'")]
     InvalidNumeric(String),
-}
-
-impl From<NoKeywordMatch> for LexError {
-    fn from(_: NoKeywordMatch) -> Self {
-        LexError::ExpectedKeyword
-    }
 }
 
 pub type LexResult<T> = ::std::result::Result<T, LexError>;
@@ -24,15 +21,13 @@ pub enum Keyword {
     Set,
 }
 
-#[derive(Debug)]
-pub struct NoKeywordMatch;
 impl FromStr for Keyword {
-    type Err = NoKeywordMatch;
+    type Err = LexError;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let keyword = match s {
             "set" => Self::Set,
-            _ => Err(NoKeywordMatch)?,
+            _ => Err(LexError::NoKeywordMatch)?,
         };
         Ok(keyword)
     }
@@ -55,7 +50,6 @@ pub enum TokenKind {
     // dual character tokens
     Equals,
     NotEquals,
-    LineComment,
 
     // literals
     Variable(String),
@@ -123,6 +117,17 @@ impl<'a> Lexer<'a> {
         next
     }
 
+    /// Keeps advancing the cursor until the next line in the
+    /// source is reached. Mainly useful for handlilng line comments.
+    fn advance_to_next_line(&mut self) {
+        loop {
+            // always returns \n even for \r\n
+            if self.advance() == Some('\n') {
+                return;
+            }
+        }
+    }
+
     /// Keeps advancing the cursor as long as the following hold true:
     /// - The predicate returns true
     /// - EOF is not reached
@@ -175,7 +180,7 @@ impl<'a> Lexer<'a> {
         // TODO: this will allow any numbers allowed by f64::from_str, maybe this is too permissive?
         let start = self.absolute_position - 1;
 
-        self.advance_while(|c| c.is_ascii_digit());
+        self.advance_while(|c| c.is_ascii_digit() || c == '.');
 
         let end = self.absolute_position - 1;
 
@@ -185,70 +190,71 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// Reads over the source file until it can find the next relevant token.
     fn next_token(&mut self) -> LexResult<Option<Token<'a>>> {
-        self.advance_while(|c| c.is_whitespace());
+        loop {
+            self.advance_while(|c| c.is_whitespace());
 
-        let start = self.absolute_position;
+            let start = self.absolute_position;
 
-        let c = match self.advance() {
-            None => return Ok(None),
-            Some(c) => c,
-        };
+            let c = match self.advance() {
+                None => return Ok(None),
+                Some(c) => c,
+            };
 
-        let kind = match c {
-            // single character tokens
-            ';' => TokenKind::SemiColon,
-            ':' => TokenKind::Colon,
-            '+' => TokenKind::Plus,
-            '-' => TokenKind::Minus,
-            '*' => TokenKind::Asterisk,
-            '(' => TokenKind::LParen,
-            ')' => TokenKind::RParen,
+            let kind = match c {
+                // single character tokens
+                ';' => TokenKind::SemiColon,
+                ':' => TokenKind::Colon,
+                '+' => TokenKind::Plus,
+                '-' => TokenKind::Minus,
+                '*' => TokenKind::Asterisk,
+                '(' => TokenKind::LParen,
+                ')' => TokenKind::RParen,
 
-            // possible double character tokens
-            '/' => match self.peek() {
-                Some('/') => {
-                    self.advance();
-                    TokenKind::LineComment
-                }
-                _ => TokenKind::Slash,
-            },
-            '=' => match self.peek() {
-                Some('=') => {
-                    self.advance();
-                    TokenKind::Equals
-                }
-                _ => TokenKind::Assign,
-            },
-            '!' => match self.peek() {
-                Some('=') => {
-                    self.advance();
-                    TokenKind::NotEquals
-                }
-                _ => TokenKind::Bang,
-            },
+                // possible double character tokens
+                '/' => match self.peek() {
+                    Some('/') => {
+                        self.advance();
+                        self.advance_to_next_line();
+                        continue;
+                    }
+                    _ => TokenKind::Slash,
+                },
+                '=' => match self.peek() {
+                    Some('=') => {
+                        self.advance();
+                        TokenKind::Equals
+                    }
+                    _ => TokenKind::Assign,
+                },
+                '!' => match self.peek() {
+                    Some('=') => {
+                        self.advance();
+                        TokenKind::NotEquals
+                    }
+                    _ => TokenKind::Bang,
+                },
 
-            '0'..='9' => self.parse_numeric()?,
-            'a'..='z' | 'A'..='Z' => self.parse_variable_or_keyword()?,
+                '0'..='9' => self.parse_numeric()?,
+                'a'..='z' | 'A'..='Z' => self.parse_variable_or_keyword()?,
 
-            _ => return Err(LexError::UnexpectedCharacter(c)),
-            // more
-        };
+                _ => return Err(LexError::UnexpectedCharacter(c)),
+            };
 
-        Ok(Some(self.create_token(kind, start)))
+            return Ok(Some(self.create_token(kind, start)));
+        }
     }
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Token<'a>;
+    type Item = LexResult<Token<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.next_token() {
-            Ok(item) => item,
-            Err(e) => {
-                println!("{:?}", e);
-                None
-            }
+            Ok(Some(token)) => Some(Ok(token)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
         }
     }
 }
@@ -258,8 +264,8 @@ mod tests {
     use crate::lexer::*;
 
     #[test]
-    fn lex_symbols() -> Result<(), ()> {
-        let source = ";:=+-/*()!!===//set variable 167 \r\nhello";
+    fn lex_symbols() {
+        let source = ";:=+-/*()!!===//set \n variable 167 \r\nhello 12.4";
         let lexer = Lexer::new(source);
 
         let expected = vec![
@@ -275,18 +281,24 @@ mod tests {
             TokenKind::Bang,
             TokenKind::NotEquals,
             TokenKind::Equals,
-            TokenKind::LineComment,
-            TokenKind::Keyword(Keyword::Set),
             TokenKind::Variable(String::from("variable")),
             TokenKind::Numeric(167f64),
             TokenKind::Variable(String::from("hello")),
+            TokenKind::Numeric(12.4),
         ];
 
         for (index, token) in lexer.enumerate() {
-            println!("{:?}", token);
-            assert_eq!(token.kind, expected[index]);
+            assert_eq!(token.unwrap().kind, expected[index]);
         }
+    }
 
-        Ok(())
+    #[test]
+    fn invalid_symbols() {
+        let source = "@ \" \\ ";
+        let lexer = Lexer::new(source);
+
+        for token in lexer {
+            assert!(token.is_err());
+        }
     }
 }
