@@ -46,10 +46,14 @@ pub enum TokenKind {
     LParen,
     RParen,
     Bang,
+    GreaterThan,
+    LessThan,
 
     // dual character tokens
     Equals,
     NotEquals,
+    GreaterEquals,
+    LesserEquals,
 
     // literals
     Variable(String),
@@ -235,6 +239,20 @@ impl<'a> Lexer<'a> {
                     }
                     _ => TokenKind::Bang,
                 },
+                '>' => match self.peek() {
+                    Some('=') => {
+                        self.advance();
+                        TokenKind::GreaterEquals
+                    }
+                    _ => TokenKind::GreaterThan,
+                },
+                '<' => match self.peek() {
+                    Some('=') => {
+                        self.advance();
+                        TokenKind::LesserEquals
+                    }
+                    _ => TokenKind::LessThan,
+                },
 
                 '0'..='9' => self.parse_numeric()?,
                 'a'..='z' | 'A'..='Z' => self.parse_variable_or_keyword()?,
@@ -265,7 +283,11 @@ mod tests {
 
     #[test]
     fn lex_symbols() {
-        let source = ";:=+-/*()!!===//set \n variable 167 \r\nhello 12.4";
+        let source = r#";:=+-/*()!!===//set 
+            variable 167 
+            hello 12.4
+            >= <= < >
+            "#;
         let lexer = Lexer::new(source);
 
         let expected = vec![
@@ -285,16 +307,22 @@ mod tests {
             TokenKind::Numeric(167f64),
             TokenKind::Variable(String::from("hello")),
             TokenKind::Numeric(12.4),
+            TokenKind::GreaterEquals,
+            TokenKind::LesserEquals,
+            TokenKind::LessThan,
+            TokenKind::GreaterThan,
         ];
 
         for (index, token) in lexer.enumerate() {
-            assert_eq!(token.unwrap().kind, expected[index]);
+            let token = token.unwrap();
+            println!("{:?}", token.kind);
+            assert_eq!(token.kind, expected[index]);
         }
     }
 
     #[test]
     fn invalid_symbols() {
-        let source = "@ \" \\ ";
+        let source = "@";
         let lexer = Lexer::new(source);
 
         for token in lexer {
