@@ -1,19 +1,19 @@
 program         := { expression ";" }
 
-expression      := declaration | operation | grouping | literal
+expression      := or | declaration
 
-declaration     := "set" VARIABLE [ assignment ]
-assignment      := "=" expression;
+declaration     := "set" VARIABLE ["=" expression]
 
-operation       := binary | unary
-binary          := expression binary_operator expression
-unary           := unary_operator expression
-binop           := "+" | "-" | "/" | "*" | "==" | "!=" | ">" | "<" | ">=" | "<="
-unop            := "!" | "-"
+or              := or "||" and | and                                    -- left associative
+and             := and "&&" equality | equality                         -- left associative
+equality        := equality ("==" | "!=") comparison | comparison       -- left associative
+comparison      := comparison (">" | ">=" | "<" | "<=") term | term     -- left associative
+term            := term ("-" | "+") factor | factor                     -- left associative
+factor          := factor ("*" | "/") unary | unary                     -- left associative
+unary           := ("!" | "-") unary | primary
+primary         := NUMBER | BOOLEAN | VARIABLE | "(" expression ")"
 
-grouping        := "(" expression ")"
-
-literal         := NUMERIC | BOOLEAN
-
-
+NUMBER          := any valid f64
+BOOLEAN         := "true" | "false"
+VARIABLE        := LETTER { LETTER | DIGIT | "_" }
 

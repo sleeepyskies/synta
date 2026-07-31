@@ -12,6 +12,8 @@ pub enum LexError {
     UnexpectedCharacter(char),
     #[error("invalid numeric syntax '{0}'")]
     InvalidNumeric(String),
+    #[error("unexpected end of file")]
+    UnexpectedEof,
 }
 
 pub type LexResult<T> = ::std::result::Result<T, LexError>;
@@ -54,6 +56,8 @@ pub enum TokenKind {
     NotEquals,
     GreaterEquals,
     LesserEquals,
+    LogicalAnd,
+    LogicalOr,
 
     // literals
     Variable(String),
@@ -263,6 +267,22 @@ impl<'a> Lexer<'a> {
                         TokenKind::LesserEquals
                     }
                     _ => TokenKind::LessThan,
+                },
+                '&' => match self.peek() {
+                    Some('&') => {
+                        self.advance();
+                        TokenKind::LogicalAnd
+                    }
+                    Some(c) => return Err(LexError::UnexpectedCharacter(c)),
+                    None => return Err(LexError::UnexpectedEof),
+                },
+                '|' => match self.peek() {
+                    Some('|') => {
+                        self.advance();
+                        TokenKind::LogicalAnd
+                    }
+                    Some(c) => return Err(LexError::UnexpectedCharacter(c)),
+                    None => return Err(LexError::UnexpectedEof),
                 },
 
                 '0'..='9' => self.parse_numeric()?,
