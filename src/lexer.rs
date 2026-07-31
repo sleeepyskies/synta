@@ -58,6 +58,7 @@ pub enum TokenKind {
     // literals
     Variable(String),
     Numeric(f64),
+    Boolean(bool),
     Keyword(Keyword),
 }
 
@@ -166,18 +167,28 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn parse_variable_or_keyword(&mut self) -> LexResult<TokenKind> {
+    /// Parses any parse character based literal. This may be a boolean literal,
+    /// variable or a synta keyword
+    fn parse_character_based_literal(&mut self) -> LexResult<TokenKind> {
         let start = self.absolute_position - 1;
 
         self.advance_while(|c| c.is_ascii_alphanumeric() || c == '_');
 
         let end = self.absolute_position - 1;
 
-        if let Ok(keyword) = Keyword::from_str(&self.source[start..=end]) {
+        let word = &self.source[start..=end];
+
+        match word {
+            "true" => return Ok(TokenKind::Boolean(true)),
+            "false" => return Ok(TokenKind::Boolean(false)),
+            _ => (),
+        }
+
+        if let Ok(keyword) = Keyword::from_str(word) {
             return Ok(TokenKind::Keyword(keyword));
         }
 
-        Ok(TokenKind::Variable(self.source[start..=end].into()))
+        Ok(TokenKind::Variable(word.into()))
     }
 
     fn parse_numeric(&mut self) -> LexResult<TokenKind> {
@@ -255,7 +266,7 @@ impl<'a> Lexer<'a> {
                 },
 
                 '0'..='9' => self.parse_numeric()?,
-                'a'..='z' | 'A'..='Z' => self.parse_variable_or_keyword()?,
+                'a'..='z' | 'A'..='Z' => self.parse_character_based_literal()?,
 
                 _ => return Err(LexError::UnexpectedCharacter(c)),
             };
@@ -287,6 +298,7 @@ mod tests {
             variable 167 
             hello 12.4
             >= <= < >
+            true false
             "#;
         let lexer = Lexer::new(source);
 
@@ -311,6 +323,8 @@ mod tests {
             TokenKind::LesserEquals,
             TokenKind::LessThan,
             TokenKind::GreaterThan,
+            TokenKind::Boolean(true),
+            TokenKind::Boolean(false),
         ];
 
         for (index, token) in lexer.enumerate() {

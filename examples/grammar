@@ -1,0 +1,19 @@
+program         := { expression ";" }
+
+expression      := declaration | operation | grouping | literal
+
+declaration     := "set" VARIABLE [ assignment ]
+assignment      := "=" expression;
+
+operation       := binary | unary
+binary          := expression binary_operator expression
+unary           := unary_operator expression
+binop           := "+" | "-" | "/" | "*" | "==" | "!=" | ">" | "<" | ">=" | "<="
+unop            := "!" | "-"
+
+grouping        := "(" expression ")"
+
+literal         := NUMERIC | BOOLEAN
+
+
+

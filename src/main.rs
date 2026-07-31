@@ -1,3 +1,4 @@
+mod expression;
 mod lexer;
 
 use crate::lexer::Lexer;
