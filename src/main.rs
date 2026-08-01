@@ -1,5 +1,5 @@
-mod expression;
 mod lexer;
+mod parser;
 
 use crate::lexer::Lexer;
 use clap::Parser;

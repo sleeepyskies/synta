@@ -1,19 +1,19 @@
-program         := { expression ";" }
+program     := { expression ";" }
 
-expression      := or | declaration
+expression  := or | declaration
 
-declaration     := "set" VARIABLE ["=" expression]
+declaration := "set" VARIABLE ["=" expression]
 
-or              := or "||" and | and                                    -- left associative
-and             := and "&&" equality | equality                         -- left associative
-equality        := equality ("==" | "!=") comparison | comparison       -- left associative
-comparison      := comparison (">" | ">=" | "<" | "<=") term | term     -- left associative
-term            := term ("-" | "+") factor | factor                     -- left associative
-factor          := factor ("*" | "/") unary | unary                     -- left associative
-unary           := ("!" | "-") unary | primary
-primary         := NUMBER | BOOLEAN | VARIABLE | "(" expression ")"
+or          := or "||" and | and                                    -- left associative
+and         := and "&&" equality | equality                         -- left associative
+equality    := equality ("==" | "!=") comparison | comparison       -- left associative
+comparison  := comparison (">" | ">=" | "<" | "<=") term | term     -- left associative
+term        := term ("-" | "+") factor | factor                     -- left associative
+factor      := factor ("*" | "/") unary | unary                     -- left associative
+unary       := ("!" | "-") unary | primary
+primary     := NUMBER | BOOLEAN | VARIABLE | "(" expression ")"
 
-NUMBER          := any valid f64
-BOOLEAN         := "true" | "false"
-VARIABLE        := LETTER { LETTER | DIGIT | "_" }
+NUMBER      := any valid f64
+BOOLEAN     := "true" | "false"
+VARIABLE    := LETTER { LETTER | DIGIT | "_" }
 
