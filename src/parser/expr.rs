@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use crate::lexer::TokenKind;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum BinaryOperator {
@@ -39,11 +40,9 @@ pub enum Expr {
         operator: UnaryOperator,
         expression: Box<Self>,
     },
-    Grouping {
-        inner: Box<Self>,
-    },
     NumericLiteral(f64),
     BooleanLiteral(bool),
+    Variable(String),
 }
 
 impl Display for BinaryOperator {
@@ -97,9 +96,43 @@ impl Display for Expr {
                 operator,
                 expression,
             } => write!(f, "({operator} {expression})"),
-            Self::Grouping { inner } => write!(f, "({inner})"),
             Self::NumericLiteral(value) => write!(f, "{value}"),
             Self::BooleanLiteral(value) => write!(f, "{value}"),
+            Self::Variable(var) => write!(f, "{var}"),
+        }
+    }
+}
+
+impl TryFrom<TokenKind> for BinaryOperator {
+    type Error = ();
+
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        match value {
+            TokenKind::Minus => Ok(Self::Minus),
+            TokenKind::Plus => Ok(Self::Plus),
+            TokenKind::Slash => Ok(Self::Divide),
+            TokenKind::Asterisk => Ok(Self::Times),
+            TokenKind::GreaterThan => Ok(Self::GreaterThan),
+            TokenKind::LessThan => Ok(Self::LesserThan),
+            TokenKind::Equals => Ok(Self::Equals),
+            TokenKind::NotEquals => Ok(Self::NotEquals),
+            TokenKind::GreaterEquals => Ok(Self::GreaterEquals),
+            TokenKind::LesserEquals => Ok(Self::LesserEquals),
+            TokenKind::LogicalAnd => Ok(Self::LogicalAnd),
+            TokenKind::LogicalOr => Ok(Self::LogicalOr),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<TokenKind> for UnaryOperator {
+    type Error = ();
+
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        match value {
+            TokenKind::Minus => Ok(Self::Minus),
+            TokenKind::Bang => Ok(Self::Not),
+            _ => Err(()),
         }
     }
 }

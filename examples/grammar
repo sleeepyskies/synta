@@ -4,12 +4,12 @@ expression  := or | declaration
 
 declaration := "set" VARIABLE ["=" expression]
 
-or          := or "||" and | and                                    -- left associative
-and         := and "&&" equality | equality                         -- left associative
-equality    := equality ("==" | "!=") comparison | comparison       -- left associative
-comparison  := comparison (">" | ">=" | "<" | "<=") term | term     -- left associative
-term        := term ("-" | "+") factor | factor                     -- left associative
-factor      := factor ("*" | "/") unary | unary                     -- left associative
+or          := and { "||" and }                                     -- left associative
+and         := equality { "&&" equality }                           -- left associative
+equality    := comparison { ("!=" | "==") comparison }              -- left associative
+comparison  := term { (">" | ">=" | "<" | "<=") term }              -- left associative
+term        := factor { ("+" | "-") factor }                        -- left associative
+factor      := unary { ("*" | "/") unary }                          -- left associative
 unary       := ("!" | "-") unary | primary
 primary     := NUMBER | BOOLEAN | VARIABLE | "(" expression ")"
 

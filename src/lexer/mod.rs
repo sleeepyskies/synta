@@ -6,10 +6,14 @@ pub use token::{Keyword, Token, TokenKind, TokenPosition};
 
 use std::{iter::Peekable, str::FromStr};
 
-// TODO: better diagnostics here?
-
+/// A result type returned by lexer operations.
 pub type LexResult<T> = Result<T, LexError>;
 
+/// A lexer that converts source code into a stream of tokens.
+///
+/// The lexer borrows the source string and yields [`Token`] values containing
+/// slices into the original source.
+#[must_use]
 pub struct Lexer<'a> {
     source: &'a str,
     iterator: Peekable<std::str::Chars<'a>>,
@@ -19,6 +23,18 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
+    /// Creates a new lexer from source code.
+    ///
+    /// The source is not copied. The lexer borrows it for its lifetime and token
+    /// lexemes will reference this original string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use synta::Lexer;
+    ///
+    /// let lexer = Lexer::new("123");
+    /// ```
     pub fn new(source: &'a str) -> Self {
         Self {
             source,
@@ -138,7 +154,7 @@ impl<'a> Lexer<'a> {
                 '(' => TokenKind::LParen,
                 ')' => TokenKind::RParen,
 
-                // possible double character tokens
+                // double character tokens
                 '/' => match self.peek() {
                     Some('/') => {
                         self.advance();
@@ -192,6 +208,7 @@ impl<'a> Lexer<'a> {
                     None => return Err(LexError::UnexpectedEof),
                 },
 
+                // n-character tokens
                 '0'..='9' => self.numeric(start)?,
                 'a'..='z' | 'A'..='Z' => self.character_sequence(start),
 
@@ -206,6 +223,10 @@ impl<'a> Lexer<'a> {
 impl<'a> Iterator for Lexer<'a> {
     type Item = LexResult<Token<'a>>;
 
+    /// Produces the next token from the source.
+    ///
+    /// Iteration stops when the end of the source is reached. Lexing errors are
+    /// yielded as [`Err`] values instead of terminating the iterator.
     fn next(&mut self) -> Option<Self::Item> {
         match self.next_token() {
             Ok(Some(token)) => Some(Ok(token)),

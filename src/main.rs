@@ -1,11 +1,14 @@
 mod lexer;
 mod parser;
 
-use crate::lexer::Lexer;
-use clap::Parser;
+use crate::{
+    lexer::{Lexer, TokenKind},
+    parser::Parser,
+};
+use clap::Parser as ClapParser;
 use std::fs;
 
-#[derive(Parser, Debug)]
+#[derive(ClapParser, Debug)]
 #[command(version, about)]
 struct Args {
     /// Path to the script file, if not present, synta will run in interactive mode
@@ -16,18 +19,28 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    if let Some(script_file) = args.script_file {
-        let source = fs::read_to_string(script_file).expect("Could not open script file.");
+    if let Some(file) = args.script_file {
+        let Ok(source) = fs::read_to_string(&file) else {
+            println!("Could not read from file {file:?}");
+            return;
+        };
         run_script(&source);
     } else {
         run_interactive();
     }
 }
 
+#[allow(clippy::unwrap_used)]
 fn run_script(script: &str) {
-    let _ = Lexer::new(script);
+    let tokens: Vec<TokenKind> = Lexer::new(script)
+        .map(|token| token.unwrap().kind)
+        .collect();
+
+    let mut parser = Parser::new(tokens);
+    let expressions = parser.parse();
+    println!("{expressions:?}");
 }
 
 fn run_interactive() {
-    unimplemented!("Not done yet :D");
+    println!("Interactive mode is not yet supported");
 }
